@@ -8,7 +8,7 @@ and exact quotas, computed with the constant-time support tests of Algorithm 1
 chain of disequalities (equal to domain consistency for regular on a path) and
 Regin's domain consistency for gcc.  Pure Python, no dependencies.
 
-Usage: python quotas.py validate|root|search|timing|all [--seed S]
+Usage: python quotas.py validate|root|infeasible|search|timing|all [--seed S]
 Every experiment reseeds the generator with S, so `all` reproduces the
 separate runs exactly.
 """
@@ -577,6 +577,25 @@ def exp_root(rng, reps=100):
     return rows
 
 
+def exp_infeasible(rng, target=100, max_attempts=1000000):
+    print('\ninfeasible instances: detection by separate filtering at the root (beta=0.6, p=0.2)')
+    print('n,k,delta,attempts,infeasible,sep_detect')
+    for n in (20, 50, 100):
+        for k in (3, 5, 8):
+            for delta in (2, 8):
+                attempts = found = det = 0
+                while found < target and attempts < max_attempts:
+                    attempts += 1
+                    pre, r = generate(n, k, 0.2, 0.6, delta, rng)
+                    if feasible(pre, k, r):
+                        continue
+                    found += 1
+                    if separate_filter(pre, k, r) is None:
+                        det += 1
+                print(f'{n},{k},{delta},{attempts},{found},{det}')
+                sys.stdout.flush()
+
+
 def exp_search(rng, reps=50, limit=20000):
     print('\nsearch to first solution or refutation (node limit %d)' % limit)
     print('n,k,delta,instances,unsat,sep_limit,sep_nodes_median,sep_nodes_max,'
@@ -630,12 +649,13 @@ def exp_timing(rng):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('what', choices=['validate', 'root', 'search', 'timing', 'all'])
+    ap.add_argument('what', choices=['validate', 'root', 'infeasible', 'search', 'timing', 'all'])
     ap.add_argument('--seed', type=int, default=2026)
     args = ap.parse_args()
     sys.setrecursionlimit(10000)
     experiments = [('validate', exp_validate), ('root', exp_root),
-                   ('search', exp_search), ('timing', exp_timing)]
+                   ('infeasible', exp_infeasible), ('search', exp_search),
+                   ('timing', exp_timing)]
     for name, run in experiments:
         if args.what in (name, 'all'):
             run(random.Random(args.seed))

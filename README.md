@@ -18,20 +18,23 @@ Python 3.8 or later. The code uses only the standard library. The results in the
 ```
 python quotas.py validate   # correctness check on 4000 small random instances
 python quotas.py root       # filtering at the root          -> Table 2 of the paper
-python quotas.py search     # depth-first search             -> Table 3 of the paper
-python quotas.py timing     # time of one filtering pass     -> Table 4 of the paper
-python quotas.py all        # all four, in this order
+python quotas.py infeasible # detection of infeasibility     -> Table 3 of the paper
+python quotas.py search     # depth-first search             -> Table 4 of the paper
+python quotas.py timing     # time of one filtering pass     -> Table 5 of the paper
+python quotas.py all        # all five, in this order
 ```
 
-The option `--seed S` sets the random seed. The default is 2026, which gives the instances used in the paper. Every experiment reseeds the generator, so `all` prints the same numbers as the four separate runs. Node counts, percentages, and instance counts are deterministic. Running times depend on the machine.
+The option `--seed S` sets the random seed. The default is 2026, which gives the instances used in the paper. Every experiment reseeds the generator, so `all` prints the same numbers as the five separate runs. Node counts, percentages, and instance counts are deterministic. Running times depend on the machine.
 
-On the machine above, `validate` takes about 1 second, `root` about 5 seconds, `timing` about 15 seconds, and `search` about 90 seconds. Rerunning `root` and `search` with the default seed reproduces `results/root.txt` and `results/search.txt` exactly, apart from the time columns.
+On the machine above, `validate` takes about 1 second, `root` about 5 seconds, `timing` about 15 seconds, `infeasible` about 90 seconds, and `search` about 90 seconds. Rerunning `root`, `infeasible`, and `search` with the default seed reproduces the corresponding files in `results/` exactly, apart from the time columns.
 
 ## What each experiment does
 
 **validate.** Generates 4000 instances with at most 10 vertices and at most 4 colors. On each instance it checks that three methods give the same supports: the fast algorithm (`supports_fast`), a naive algorithm that fixes every vertex-color pair and reruns the singleton and pair tests of Theorem 2 (`supports_naive`), and exhaustive enumeration (`supports_brute`). It also checks that separate filtering never removes a supported value. The expected output is `joint mismatches 0, unsound separate 0`.
 
-**root.** For n in {20, 50, 200}, k in {3, 5, 8}, bias β in {0, 0.6}, and δ in {0, 2}, it generates 100 instances and filters them once at the root. The paper reports the rows with δ = 2.
+**root.** For n in {20, 50, 200}, k in {3, 5, 8}, bias β in {0, 0.6}, and δ in {0, 2}, it generates 100 instances and filters them once at the root. The paper reports the removal percentages for δ = 2. The column `sep_detect` of this experiment is not used in the paper, because most rows contain few or no infeasible instances. The experiment `infeasible` measures detection instead.
+
+**infeasible.** For n in {20, 50, 100}, k in {3, 5, 8}, and δ in {2, 8}, with β = 0.6, it generates instances until 100 of them are infeasible, with at most 10^6 attempts per row, and filters each infeasible instance once at the root. It reports the number of attempts and the number of infeasible instances on which separate filtering empties a domain. Joint filtering rejects every infeasible instance by Theorem 2.
 
 **search.** For n in {20, 40, 60}, k in {3, 4}, and δ in {1, 2}, with β = 0.6, it solves 50 instances by depth-first search. Both solvers branch on the leftmost free vertex and try the smallest color first. Search with separate filtering stops after 20000 nodes. The script also asserts that the two solvers agree on satisfiability whenever separate search finishes.
 
@@ -55,12 +58,13 @@ Each command prints a title line followed by comma-separated rows.
 | Experiment | Columns |
 |---|---|
 | root | `n,k,p,skew,delta,feasible,sep_detect,sep_removed_pct,joint_removed_pct` |
+| infeasible | `n,k,delta,attempts,infeasible,sep_detect` |
 | search | `n,k,delta,instances,unsat,sep_limit,sep_nodes_median,sep_nodes_max,joint_nodes_median,joint_failures,sep_s,joint_s` |
 | timing | `n,k,regions,joint_tests,joint_s,separate_s` |
 
 The column meanings are as follows.
 
-- `sep_detect` is the number of infeasible instances on which separate filtering empties a domain, out of all infeasible instances in the row.
+- `sep_detect` is the number of infeasible instances on which separate filtering empties a domain. In `root` it is written as detected/infeasible for the row, and `-` means that the row has no infeasible instance.
 - The `*_removed_pct` columns give the mean percentage of free vertex-color pairs removed, over the feasible instances.
 - Node counts include the root. A value of 20001 in `sep_nodes_max` means that the node limit was reached.
 - Times are in seconds. In `search` they are totals over the instances of a row.
@@ -79,7 +83,7 @@ All code is in `quotas.py`.
 | `ac_neq`, `gcc_dc`, `separate_filter` | separate filtering: arc consistency on the disequalities and Régin's algorithm for `gcc` |
 | `search_separate`, `search_joint` | depth-first search with each kind of filtering |
 | `generate` | random instances |
-| `exp_validate`, `exp_root`, `exp_search`, `exp_timing` | the four experiments |
+| `exp_validate`, `exp_root`, `exp_infeasible`, `exp_search`, `exp_timing` | the five experiments |
 
 The implementation handles paths. The theory in the paper also covers cycles and disjoint unions of paths and cycles.
 
